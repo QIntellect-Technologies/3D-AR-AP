@@ -1,0 +1,8 @@
+node_modules/
+android/
+ios/
+build/
+*.js  // Ignore JS files since we're using TS
+babel.config.js
+metro.config.js
+react-native.config.js
