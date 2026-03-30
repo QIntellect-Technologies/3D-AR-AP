@@ -4,6 +4,8 @@ import { config } from "./config";
 import uploadRoutes from "./routes/uploads";
 import projectRoutes from "./routes/projects";
 import jobsRoutes from "./routes/jobs";
+import webhookRoutes from "./routes/webhooks";
+import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
@@ -13,8 +15,12 @@ app.use(express.json());
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/jobs", jobsRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// global error handler
+app.use(errorHandler);
 
 const port = Number(config.port);
 

@@ -13,6 +13,9 @@ export type RootStackParamList = {
   Processing: { jobId: string; projectId: string }; // make projectId required if you use it
   Viewer: { glbUrl: string }; // keep naming consistent with ProcessingScreen
   AR: { glbUrl: string; scale?: number };
+  Projects: undefined;
+  GLBUpload: undefined;
+  ProjectDetail: { projectId: string };
 };
 
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;

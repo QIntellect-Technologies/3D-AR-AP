@@ -1,18 +1,3 @@
-// import { supabase } from '../config/supabase';
-
-// export async function getSession() {
-//   const { data } = await supabase.auth.getSession();
-//   return data.session ?? null;
-// }
-
-// export async function getAccessToken(): Promise<string | null> {
-//   const session = await getSession();
-//   return session?.access_token ?? null;
-// }
-
-// export async function signOut() {
-//   await supabase.auth.signOut();
-// }
 import { supabase } from '../config/supabase';
 
 export async function getSession() {

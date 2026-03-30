@@ -67,12 +67,7 @@ const CameraComponent: React.FC<CameraComponentProps> = ({
 
   const progress = captureCount === 0 ? 0 : persistedPaths.length / captureCount;
 
-  const { status, requestPermission } = usePermissions({
-    permission: 'CAMERA',
-    rationaleTitle: 'Camera Access',
-    rationaleMessage: 'Needed for 3D capture.',
-    onDenied: () => Alert.alert('Permission Denied', 'Camera access is required.'),
-  });
+  const { status, requestPermission } = usePermissions();
 
   const capturePhoto = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -177,7 +172,15 @@ const CameraComponent: React.FC<CameraComponentProps> = ({
     return (
       <View style={styles.permissionContainer}>
         <Text style={styles.permissionText}>Camera permission required</Text>
-        <TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
+        <TouchableOpacity
+          style={styles.grantButton}
+          onPress={async () => {
+            const granted = await requestPermission();
+            if (!granted) {
+              Alert.alert('Permission Denied', 'Camera access is required.');
+            }
+          }}
+        >
           <Text style={styles.grantButtonText}>Grant Permission</Text>
         </TouchableOpacity>
       </View>

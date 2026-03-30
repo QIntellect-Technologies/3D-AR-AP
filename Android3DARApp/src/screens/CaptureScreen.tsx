@@ -40,17 +40,29 @@ export default function CaptureScreen({ navigation }: CaptureScreenProps) {
   } = useUploadPipeline();
 
   const handlePhotosCaptured = async (photoPaths: string[]) => {
+    console.log('🔵 CaptureScreen: handlePhotosCaptured called with', photoPaths.length, 'photos');
     setCheckingQuality(true);
 
     try {
+      console.log('🔵 Calling startUpload...');
       const { projectId, jobId } = await startUpload(photoPaths);
+      console.log('✅ startUpload succeeded:', { projectId, jobId });
+
+      console.log('🔵 Navigating to Processing...');
 
       navigation.navigate('Processing', {
         jobId: jobId || 'fake-job-123',
         projectId,
       });
     } catch (e: any) {
-      console.error('Full upload pipeline error:', e);
+      console.error('❌ Full upload pipeline error:', e);
+      console.error('Error details:', {
+        message: e.message,
+        name: e.name,
+        stack: e.stack,
+        url: e.config?.url, // if using axios
+        response: e.response,
+      });
       Alert.alert('Upload Error', e?.message ?? 'Unknown error');
       resetUpload();
     } finally {

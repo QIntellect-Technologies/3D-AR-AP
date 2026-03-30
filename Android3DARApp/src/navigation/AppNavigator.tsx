@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { supabase } from '../config/supabase';
-import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
-import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
-import SignupScreen from '@/screens/auth/SignupScreen';
+import { RootStackParamList } from '../types/navigation';
+
+// Screens
+import LoginScreen from '../screens/auth/LoginScreen';
+import SignupScreen from '../screens/auth/SignupScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
+import ProjectListScreen from '../screens/ProjectListScreen';
+import GLBUploadScreen from '../screens/GLBUploadScreen';
 import CaptureScreen from '../screens/CaptureScreen';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import ViewerScreen from '../screens/ViewerScreen';
 import ARScreen from '../screens/ARScreen';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import LoginScreen from '@/screens/auth/LoginScreen';
-import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -54,6 +58,16 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen
+              name="Projects"
+              component={ProjectListScreen}
+              options={{ title: 'Your Projects' }}
+            />
+            <Stack.Screen
+              name="GLBUpload"
+              component={GLBUploadScreen}
+              options={{ title: 'Upload GLB Model' }}
+            />
+            <Stack.Screen
               name="Capture"
               component={CaptureScreen}
               options={{ title: 'Capture Model' }}
@@ -61,13 +75,13 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Processing"
               component={ProcessingScreen}
-              options={{ title: 'Processing...', headerLeft: () => null }} // no back during processing
+              options={{ title: 'Processing...', headerLeft: () => null }}
             />
             <Stack.Screen name="Viewer" component={ViewerScreen} options={{ title: '3D Viewer' }} />
             <Stack.Screen
               name="AR"
               component={ARScreen}
-              options={{ title: 'AR Placement', headerShown: false }} // full screen AR
+              options={{ title: 'AR Placement', headerShown: false }}
             />
           </>
         )}

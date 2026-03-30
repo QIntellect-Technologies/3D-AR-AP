@@ -176,6 +176,44 @@ router.post("/:id/trigger", authenticate, async (req: AuthedRequest, res) => {
   }
 });
 
+// PATCH /api/projects/:id/glb_url
+router.patch("/:id/glb_url", authenticate, async (req: AuthedRequest, res) => {
+  try {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const bodySchema = z.object({ glbUrl: z.string().url() });
+
+    const { id: projectId } = paramsSchema.parse(req.params);
+    const { glbUrl } = bodySchema.parse(req.body);
+
+    const userId = requireUserId(req);
+
+    const { data: project, error: projectError } = await supabaseAdmin
+      .from("projects")
+      .select("id")
+      .eq("id", projectId)
+      .eq("user_id", userId)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from("projects")
+      .update({ glb_url: glbUrl, status: "completed", job_status: "completed" })
+      .eq("id", projectId);
+
+    if (updateError) throw updateError;
+
+    return res.json({ success: true, projectId, glbUrl });
+  } catch (err: any) {
+    console.error("Set GLB URL error:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to set GLB url", details: err.message });
+  }
+});
+
 // GET /api/projects/:id/status
 router.get("/:id/status", authenticate, async (req: AuthedRequest, res) => {
   try {

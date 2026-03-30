@@ -1,9 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import type { HomeScreenProps, RootStackParamList } from '../types/navigation';
+import type { HomeScreenProps } from '../types/navigation';
 import MaterialIcons from '@react-native-vector-icons/material-icons';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   return (
@@ -29,12 +27,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </TouchableOpacity>
         </View>
 
-        {/* Future buttons – disabled for now */}
-        <TouchableOpacity style={[styles.secondaryButton, styles.disabled]} disabled>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Projects')}>
           <Text style={styles.secondaryButtonText}>Continue Previous Job</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.secondaryButton, styles.disabled]} disabled>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('GLBUpload')}>
           <Text style={styles.secondaryButtonText}>Import Existing Model</Text>
         </TouchableOpacity>
       </View>
