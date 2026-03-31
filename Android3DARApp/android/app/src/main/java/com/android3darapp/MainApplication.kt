@@ -12,16 +12,31 @@ import org.opencv.android.OpenCVLoader
 
 class MainApplication : Application(), ReactApplication {
 
+    private fun initOpenCvRuntime() {
+        // Ensure OpenCV native symbols are available before any Mat usage.
+        val loaded = try {
+            OpenCVLoader.initLocal()
+        } catch (e: Throwable) {
+            Log.e("MainApplication", "OpenCV initLocal failed", e)
+            false
+        }
+
+        if (!loaded) {
+            try {
+                System.loadLibrary("opencv_java4")
+                Log.d("MainApplication", "opencv_java4 loaded via System.loadLibrary")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e("MainApplication", "opencv_java4 load failed", e)
+            }
+        } else {
+            Log.d("MainApplication", "OpenCV initialized with initLocal")
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
 
-        // Load OpenCV early – before any React Native or module initialization
-        if (OpenCVLoader.initLocal()) {
-            Log.d("MainApplication", "OpenCV loaded successfully via initLocal")
-        } else {
-            Log.e("MainApplication", "OpenCV initLocal failed! Native functions will not work.")
-            // You could show a toast or fatal error here in production
-        }
+        initOpenCvRuntime()
 
         loadReactNative(this)
     }

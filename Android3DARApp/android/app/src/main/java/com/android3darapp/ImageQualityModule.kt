@@ -8,6 +8,8 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import java.util.concurrent.atomic.AtomicBoolean
+import org.opencv.android.OpenCVLoader
 import org.opencv.core.Core
 import org.opencv.core.CvType
 import org.opencv.core.Mat
@@ -17,6 +19,28 @@ import org.opencv.android.Utils
 import java.io.File
 
 class ImageQualityModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+
+    companion object {
+        private val openCvReady = AtomicBoolean(false)
+
+        private fun ensureOpenCvInitialized() {
+            if (openCvReady.get()) return
+
+            val loaded = try {
+                OpenCVLoader.initLocal()
+            } catch (e: Throwable) {
+                Log.e("ImageQuality", "OpenCV initLocal failed", e)
+                false
+            }
+
+            if (!loaded) {
+                System.loadLibrary("opencv_java4")
+            }
+
+            openCvReady.set(true)
+            Log.d("ImageQuality", "OpenCV runtime initialized")
+        }
+    }
 
     override fun getName(): String = "ImageQuality"
 
@@ -30,6 +54,8 @@ class ImageQualityModule(reactContext: ReactApplicationContext) : ReactContextBa
         Log.d("ImageQuality", "checkBlur called with path: $imagePath")
 
         try {
+            ensureOpenCvInitialized()
+
             val realPath = normalizePath(imagePath)
             val file = File(realPath)
             if (!file.exists()) {
@@ -67,7 +93,7 @@ class ImageQualityModule(reactContext: ReactApplicationContext) : ReactContextBa
 
             Log.d("ImageQuality", "Computed variance: $variance")
             promise.resolve(variance)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("ImageQuality", "Error in checkBlur", e)
             promise.reject("NATIVE_ERROR", e.message ?: "Unknown error")
         }
@@ -79,6 +105,8 @@ class ImageQualityModule(reactContext: ReactApplicationContext) : ReactContextBa
         Log.d("ImageQuality", "checkExposure called with path: $imagePath")
 
         try {
+            ensureOpenCvInitialized()
+
             val realPath = normalizePath(imagePath)
             val file = File(realPath)
             if (!file.exists()) {
@@ -158,7 +186,7 @@ class ImageQualityModule(reactContext: ReactApplicationContext) : ReactContextBa
             )
 
             promise.resolve(status)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("ImageQuality", "Error in checkExposure", e)
             promise.reject("NATIVE_ERROR", e.message ?: "Unknown error")
         }

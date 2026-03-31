@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { api } from '../utils/api';
-import type { HomeScreenProps } from '../types/navigation';
+import type { ProjectListScreenProps } from '../types/navigation';
 
 type Project = {
   id: string;
@@ -18,7 +18,7 @@ type Project = {
   glb_url?: string | null;
 };
 
-export default function ProjectListScreen({ navigation }: HomeScreenProps) {
+export default function ProjectListScreen({ navigation }: ProjectListScreenProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

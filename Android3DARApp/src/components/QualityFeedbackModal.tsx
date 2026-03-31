@@ -21,7 +21,11 @@ const QualityFeedbackModal: React.FC<QualityFeedbackModalProps> = ({
 
   React.useEffect(() => {
     if (visible) {
-      Vibration.vibrate(400); // subtle haptic feedback
+      try {
+        Vibration.vibrate(400);
+      } catch {
+        // Some devices/builds can throw if VIBRATE is missing or blocked.
+      }
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 6,

@@ -10,9 +10,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { api } from '../utils/api';
-import type { HomeScreenProps } from '../types/navigation';
+import type { GLBUploadScreenProps } from '../types/navigation';
 
-export default function GLBUploadScreen({ navigation }: HomeScreenProps) {
+export default function GLBUploadScreen({ navigation }: GLBUploadScreenProps) {
   const [glbUrl, setGlbUrl] = useState('');
   const [processAR, setProcessAR] = useState(true);
   const [loading, setLoading] = useState(false);

@@ -1,10 +1,7 @@
 // src/utils/fileUtils.ts
-import type { PhotoFile } from 'react-native-vision-camera';
 type VisionCameraPhoto = { path: string };
 import RNFS from 'react-native-fs';
 export const APP_PHOTO_DIR = `${RNFS.CachesDirectoryPath}/3d-capture-photos`;
-
-const stripFileScheme = (p: string) => (p.startsWith('file://') ? p.replace('file://', '') : p);
 
 // Ensure directory exists (idempotent)
 export const ensurePhotoDirectory = async (): Promise<void> => {

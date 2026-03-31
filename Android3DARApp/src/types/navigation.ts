@@ -19,6 +19,8 @@ export type RootStackParamList = {
 };
 
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+export type ProjectListScreenProps = NativeStackScreenProps<RootStackParamList, 'Projects'>;
+export type GLBUploadScreenProps = NativeStackScreenProps<RootStackParamList, 'GLBUpload'>;
 export type CaptureScreenProps = NativeStackScreenProps<RootStackParamList, 'Capture'>;
 export type ProcessingScreenProps = NativeStackScreenProps<RootStackParamList, 'Processing'>;
 export type ViewerScreenProps = NativeStackScreenProps<RootStackParamList, 'Viewer'>;

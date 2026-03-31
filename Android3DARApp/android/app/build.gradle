@@ -81,6 +81,9 @@ android {
     }
     namespace "com.android3darapp"
     defaultConfig {
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
         applicationId "com.android3darapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
@@ -117,13 +120,19 @@ android {
         pickFirst '**/libfbjni.so'
         pickFirst '**/libjsi.so'
         pickFirst '**/libreactnative.so'  // Seen in similar issues with fast-opencv
+        
+        // Prevent stripping that corrupts native libs
+        doNotStrip '**/libopencv_java4.so'
+        doNotStrip '**/libopencv_*.so'
+        doNotStrip '**/libc++_shared.so'
+        doNotStrip '**/libreactnative.so'
     }
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
@@ -138,3 +147,49 @@ dependencies {
         // Add more excludes if needed after checking dependency tree (see step below)
     }
 }
+
+// Explicitly exclude transitive OpenCV artifacts from external modules.
+configurations.configureEach {
+    exclude group: 'org.opencv', module: 'opencv-android'
+}
+
+def openCvLibDir = file("${rootDir}/opencv/src/main/jniLibs")
+
+tasks.register("verifyOpenCvNativeLibs") {
+    doLast {
+        def badFiles = []
+        def soFiles = fileTree(openCvLibDir).matching { include "**/libopencv_java4.so" }.files
+
+        soFiles.each { f ->
+            if (!f.exists() || f.length() < 1024 * 1024) {
+                badFiles << "${f} (size=${f.length()})"
+                return
+            }
+
+            byte[] header = new byte[4]
+            f.withInputStream { input ->
+                input.read(header)
+            }
+
+            def isElf =
+                ((header[0] & 0xFF) == 0x7F) &&
+                ((header[1] & 0xFF) == 0x45) &&
+                ((header[2] & 0xFF) == 0x4C) &&
+                ((header[3] & 0xFF) == 0x46)
+
+            if (!isElf) {
+                badFiles << "${f} (invalid ELF header)"
+            }
+        }
+
+        if (!badFiles.isEmpty()) {
+            throw new GradleException(
+                "OpenCV native libraries are invalid (likely Git LFS pointers, not binaries).\\n" +
+                "Run: git lfs install ; git lfs pull\\n\\n" +
+                badFiles.join("\\n")
+            )
+        }
+    }
+}
+
+preBuild.dependsOn("verifyOpenCvNativeLibs")

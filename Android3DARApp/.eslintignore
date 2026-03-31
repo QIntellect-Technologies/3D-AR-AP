@@ -2,7 +2,8 @@ node_modules/
 android/
 ios/
 build/
-*.js  // Ignore JS files since we're using TS
+# Ignore JS files since this app source is TypeScript-first
+*.js
 babel.config.js
 metro.config.js
 react-native.config.js
