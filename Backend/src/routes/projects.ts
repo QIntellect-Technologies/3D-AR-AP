@@ -82,91 +82,149 @@ router.get("/", authenticate, async (req: AuthedRequest, res) => {
 // Enqueue reconstruction job for a project
 // ───────────────────────────────────────────────
 // projects.ts
+// POST /api/projects/:id/trigger
 router.post("/:id/trigger", authenticate, async (req: AuthedRequest, res) => {
   try {
+    console.log("🎯 TRIGGER CALLED - This should be the only trigger");
     const paramsSchema = z.object({ id: z.string().uuid() });
     const { id: projectId } = paramsSchema.parse(req.params);
 
     const userId = requireUserId(req);
 
-    // 1) verify project belongs to user
-    const { data: project, error: fetchError } = await supabaseAdmin
-      .from("projects")
-      .select("id, user_id, status")
-      .eq("id", projectId)
-      .eq("user_id", userId)
-      .single();
+    // Retry logic for the entire operation
+    const maxRetries = 3;
+    let lastError = null;
 
-    if (fetchError || !project) {
-      return res
-        .status(404)
-        .json({ error: "Project not found or not owned by user" });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `Trigger attempt ${attempt}/${maxRetries} for project ${projectId}`,
+        );
+
+        // 1) Verify project belongs to user
+        const { data: project, error: fetchError } = await supabaseAdmin
+          .from("projects")
+          .select("id, user_id, status")
+          .eq("id", projectId)
+          .eq("user_id", userId)
+          .single();
+
+        if (fetchError || !project) {
+          return res
+            .status(404)
+            .json({ error: "Project not found or not owned by user" });
+        }
+
+        // 2) Prevent duplicate running jobs for same project
+        const { data: existingJob } = await supabaseAdmin
+          .from("recon_jobs")
+          .select("id, status")
+          .eq("project_id", projectId)
+          .in("status", ["pending", "queued", "processing"])
+          .maybeSingle();
+
+        if (existingJob?.id) {
+          console.log(
+            `Job already exists for project ${projectId} with status ${existingJob.status}`,
+          );
+          return res.status(200).json({
+            success: true,
+            projectId,
+            jobId: existingJob.id,
+            message: `Job already ${existingJob.status}`,
+          });
+        }
+
+        // 3) Create recon_jobs row (real DB jobId)
+        const { data: jobRow, error: jobErr } = await supabaseAdmin
+          .from("recon_jobs")
+          .insert({
+            user_id: userId,
+            project_id: projectId,
+            status: "queued",
+            progress: 0,
+          })
+          .select("id")
+          .single();
+
+        if (jobErr || !jobRow) throw jobErr;
+
+        const jobId = jobRow.id;
+        console.log(`Created recon_job row with ID: ${jobId}`);
+
+        // 4) Enqueue worker with retry for queue operations
+        let queueAttempt = 0;
+        const maxQueueRetries = 3;
+        let job = null;
+
+        while (queueAttempt < maxQueueRetries) {
+          try {
+            job = await reconstructionQueue.add(
+              "reconstruct",
+              { jobId },
+              { jobId },
+            );
+            console.log(
+              `Successfully enqueued job to BullMQ (attempt ${queueAttempt + 1})`,
+            );
+            break;
+          } catch (queueError: any) {
+            queueAttempt++;
+            console.error(
+              `Queue add attempt ${queueAttempt}/${maxQueueRetries} failed:`,
+              queueError.message,
+            );
+            if (queueAttempt === maxQueueRetries) throw queueError;
+            const delay = 2000 * queueAttempt;
+            console.log(`Waiting ${delay}ms before retry...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+
+        console.log(
+          `Enqueued reconstruction job ${job!.id} for project ${projectId}`,
+        );
+
+        // 5) Update project status
+        const { error: updateError } = await supabaseAdmin
+          .from("projects")
+          .update({
+            status: "queued",
+            job_id: jobId,
+            job_status: "queued",
+            job_started_at: new Date().toISOString(),
+          })
+          .eq("id", projectId)
+          .eq("user_id", userId);
+
+        if (updateError) throw updateError;
+
+        // Success - return early
+        return res.json({
+          success: true,
+          projectId,
+          jobId,
+          message: "Reconstruction job enqueued",
+        });
+      } catch (err: any) {
+        lastError = err;
+        console.error(
+          `Trigger attempt ${attempt}/${maxRetries} failed:`,
+          err.message,
+        );
+
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff: 2s, 4s, 6s)
+          const delay = attempt * 2000;
+          console.log(`Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
     }
 
-    // Optional: prevent duplicate running jobs for same project
-    const { data: existingJob } = await supabaseAdmin
-      .from("recon_jobs")
-      .select("id, status")
-      .eq("project_id", projectId)
-      .in("status", ["pending", "queued", "processing"])
-      .maybeSingle();
-
-    if (existingJob?.id) {
-      return res.status(200).json({
-        success: true,
-        projectId,
-        jobId: existingJob.id,
-        message: `Job already ${existingJob.status}`,
-      });
-    }
-
-    // 2) Create recon_jobs row (real DB jobId)
-    const { data: jobRow, error: jobErr } = await supabaseAdmin
-      .from("recon_jobs")
-      .insert({
-        user_id: userId,
-        project_id: projectId,
-        status: "queued",
-        progress: 0,
-      })
-      .select("id")
-      .single();
-
-    if (jobErr || !jobRow) throw jobErr;
-
-    const jobId = jobRow.id;
-
-    // 3) Enqueue worker using DB jobId (BullMQ jobId can be the same UUID)
-    const job = await reconstructionQueue.add(
-      "reconstruct",
-      { jobId },
-      { jobId },
-    );
-
-    console.log(
-      `Enqueued reconstruction job ${job.id} for project ${projectId}`,
-    );
-
-    // 4) Update project status (optional)
-    const { error: updateError } = await supabaseAdmin
-      .from("projects")
-      .update({
-        status: "queued",
-        job_id: jobId,
-        job_status: "queued",
-        job_started_at: new Date().toISOString(),
-      })
-      .eq("id", projectId)
-      .eq("user_id", userId);
-
-    if (updateError) throw updateError;
-
-    return res.json({
-      success: true,
-      projectId,
-      jobId, // ✅ real UUID from DB
-      message: "Reconstruction job enqueued",
-    });
+    // If we get here, all retries failed
+    throw lastError;
   } catch (err: any) {
     console.error("Trigger reconstruction error:", err);
     return res.status(500).json({

@@ -5,24 +5,66 @@ import { runMeshroom } from "./meshroom_runner";
 import path from "path";
 import fs from "fs/promises";
 
+async function testSupabaseConnection() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const res = await fetch(
+      "https://pdrxdnkaowokqmmcdeke.supabase.co/rest/v1/",
+      {
+        method: "HEAD",
+        signal: controller.signal,
+      },
+    );
+    console.log("Supabase reachable:", res.status);
+  } catch (err) {
+    console.error("Supabase unreachable:", err);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+testSupabaseConnection();
+
 const worker = new Worker(
   "reconstruction",
   async (job) => {
     const { jobId } = job.data as { jobId: string };
 
-    // 0. Load recon job row first
-    const { data: jobRow, error: jobFetchErr } = await supabaseAdmin
-      .from("recon_jobs")
-      .select("id, project_id, user_id")
-      .eq("id", jobId)
-      .single();
+    // ===== CHANGE 1: Add retry logic for finding the job row =====
+    let retries = 0;
+    const maxRetries = 5;
+    let jobRow = null;
 
-    if (jobFetchErr || !jobRow) {
-      throw new Error(`recon_jobs row not found for jobId=${jobId}`);
+    while (retries < maxRetries && !jobRow) {
+      // 0. Load recon job row first
+      const { data, error } = await supabaseAdmin
+        .from("recon_jobs")
+        .select("id, project_id, user_id")
+        .eq("id", jobId)
+        .single();
+
+      if (error || !data) {
+        retries++;
+        if (retries < maxRetries) {
+          console.log(
+            `Job row not found for ${jobId}, retry ${retries}/${maxRetries} in ${retries * 1000}ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, retries * 1000));
+          continue;
+        } else {
+          throw new Error(
+            `recon_jobs row not found for jobId=${jobId} after ${maxRetries} retries`,
+          );
+        }
+      }
+
+      jobRow = data;
     }
+    // ===== END OF CHANGE 1 =====
 
-    const projectId = jobRow.project_id;
-    const userId = jobRow.user_id;
+    const projectId = jobRow?.project_id;
+    const userId = jobRow?.user_id;
 
     if (!projectId) {
       throw new Error(`project_id missing for recon job ${jobId}`);
@@ -120,9 +162,14 @@ const worker = new Worker(
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabaseAdmin.storage
-        .from("scans")
-        .getPublicUrl(glbStoragePath);
+      // ✅ Create a signed URL valid for 1 year (31536000 seconds)
+      const { data: signedUrlData, error: signedUrlError } =
+        await supabaseAdmin.storage
+          .from("scans")
+          .createSignedUrl(glbStoragePath, 60 * 60 * 24 * 365); // 1 year
+
+      if (signedUrlError) throw signedUrlError;
+      const modelUrl = signedUrlData.signedUrl; // ✅ signed URL with token
 
       // 6. Final DB update
       await supabaseAdmin
@@ -130,7 +177,7 @@ const worker = new Worker(
         .update({
           status: "completed",
           progress: 100,
-          model_url: urlData.publicUrl,
+          model_url: modelUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("id", jobId);
@@ -141,15 +188,13 @@ const worker = new Worker(
           status: "completed",
           job_status: "completed",
           job_finished_at: new Date().toISOString(),
-          glb_url: urlData.publicUrl,
+          glb_url: modelUrl,
         })
         .eq("id", projectId);
 
-      console.log(
-        `[Worker] Completed project ${projectId} - GLB: ${urlData.publicUrl}`,
-      );
+      console.log(`[Worker] Completed project ${projectId} - GLB: ${modelUrl}`);
 
-      if (!urlData?.publicUrl) {
+      if (!modelUrl) {
         throw new Error("Failed to generate public URL for uploaded GLB");
       }
     } catch (e: any) {

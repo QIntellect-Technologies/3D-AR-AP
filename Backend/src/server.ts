@@ -7,6 +7,22 @@ import jobsRoutes from "./routes/jobs";
 import webhookRoutes from "./routes/webhooks";
 import { errorHandler } from "./middleware/errorHandler";
 
+const originalFetch = global.fetch;
+global.fetch = async (...args) => {
+  const url = args[0];
+  console.log(`🌐 [FETCH] ${url}`);
+
+  // Don't log Supabase health checks to avoid spam
+  if (typeof url === "string" && !url.includes("/rest/v1/")) {
+    console.log(`🌐 [FETCH DETAILS]`, {
+      url,
+      method: args[1]?.method || "GET",
+    });
+  }
+
+  return originalFetch(...args);
+};
+
 const app = express();
 
 app.use(cors());
