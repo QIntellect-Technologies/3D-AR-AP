@@ -29,6 +29,24 @@ export async function getAccessToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+// 👇 Add this function
+export async function refreshSession(): Promise<boolean> {
+  try {
+    const { error } = await supabase.auth.refreshSession();
+
+    if (error) {
+      console.error('Refresh session error:', error.message);
+      return false;
+    }
+
+    console.log('Session refreshed successfully');
+    return true;
+  } catch (err: any) {
+    console.error('Failed to refresh session:', err?.message ?? String(err));
+    return false;
+  }
+}
+
 export async function signOut() {
   await supabase.auth.signOut();
 }

@@ -5,6 +5,7 @@ import { supabase } from '../config/supabase';
 import { RootStackParamList } from '../types/navigation';
 
 // Screens
+import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -22,8 +23,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function AppNavigator() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    // Check auth session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
@@ -35,6 +38,18 @@ export default function AppNavigator() {
 
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Handle splash screen timeout
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen navigation={{ replace: (): void => {} }} />;
+  }
 
   if (loading) return null;
 
@@ -48,15 +63,25 @@ export default function AppNavigator() {
         }}
       >
         {!session ? (
+          // Auth Screens
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+              options={{ title: 'Forgot Password' }}
+            />
+            <Stack.Screen
+              name="ResetPassword"
+              component={ResetPasswordScreen}
+              options={{ title: 'Reset Password' }}
+            />
           </>
         ) : (
+          // Main App Screens
           <>
-            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="Projects"
               component={ProjectListScreen}
@@ -70,14 +95,22 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Capture"
               component={CaptureScreen}
-              options={{ title: 'Capture Model' }}
+              options={{ title: 'Capture Model', headerShown: false }}
             />
             <Stack.Screen
               name="Processing"
               component={ProcessingScreen}
-              options={{ title: 'Processing...', headerLeft: () => null }}
+              options={{
+                title: 'Processing...',
+                headerLeft: () => null,
+                gestureEnabled: false,
+              }}
             />
-            <Stack.Screen name="Viewer" component={ViewerScreen} options={{ title: '3D Viewer' }} />
+            <Stack.Screen
+              name="Viewer"
+              component={ViewerScreen}
+              options={{ title: '3D Viewer', headerShown: false }}
+            />
             <Stack.Screen
               name="AR"
               component={ARScreen}

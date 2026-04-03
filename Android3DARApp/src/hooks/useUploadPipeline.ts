@@ -16,7 +16,7 @@ type UploadState = {
 
 type UploadResult = {
   projectId: string;
-  jobId?: string;
+  jobId: string;
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -231,15 +231,14 @@ export function useUploadPipeline() {
 
       // 5) Trigger reconstruction
       console.log(`[Pipeline] Triggering reconstruction for project ${projectId}...`);
-      let jobId: string | undefined;
-      try {
-        const triggerJson = await api<{ jobId?: string }>(`/projects/${projectId}/trigger`, {
-          method: 'POST',
-        });
-        jobId = triggerJson?.jobId;
-        console.log('Job enqueued with ID:', jobId);
-      } catch (e: any) {
-        console.warn('[Pipeline] Trigger failed:', e.message);
+      const triggerJson = await api<{ jobId?: string }>(`/projects/${projectId}/trigger`, {
+        method: 'POST',
+      });
+      const jobId = triggerJson?.jobId;
+      console.log('Job enqueued with ID:', jobId);
+
+      if (!jobId) {
+        throw new Error('Backend did not return a jobId from trigger');
       }
 
       setState((s) => ({ ...s, uploadProgress: 1 }));
